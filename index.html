@@ -169,7 +169,7 @@ body{
     <p class="loadtxt" id="loadtxt">준비하는 중</p>
     <div class="bar"><span id="barFill"></span><b id="barBow"><svg viewBox="0 0 24 24"><path d="M12 21.3 10.5 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.5 11.5L12 21.3z"/></svg></b></div>
     <p class="pct" id="pct">0%</p>
-    <p class="ver" id="ver">v10</p>
+    <p class="ver" id="ver">v11</p>
   </section>
 
   <section class="scene opening" id="s1" role="button" tabindex="0" aria-label="시작하기">
@@ -204,7 +204,12 @@ body{
    ══════════════════════════════════════════ */
 const CONFIG = {
   호칭: "누나",
-  촛불개수: 3,
+
+  이름: "임주희",
+  생일: "1999.08.21",
+  나이: 28,          // 이 숫자 모양으로 초가 꽂힙니다
+
+  촛불개수: 3,       // 나이를 비워두면 이 개수만큼 보통 초가 꽂힙니다
 
   감도: 1.0,        // 잘 안 꺼지면 1.3, 1.6으로 올리세요
   숨구분: 0.28,     // 노래에도 꺼지면 올리고(0.4), 불어도 안 꺼지면 내리세요(0.18)
@@ -218,7 +223,7 @@ const CONFIG = {
   ],
   서명: "— 하나뿐인 동생이",
   노래재생: true,
-  버전: "v10"
+  버전: "v11"
 };
 /* ══════════════════════════════════════════ */
 
@@ -378,20 +383,47 @@ function buildGifts(){
   return band;
 }
 
+let _mc=null;
+function measureDigit(ch,px){
+  if(!_mc){ _mc=document.createElement('canvas').getContext('2d'); }
+  _mc.font='700 '+px+'px Jua, "Apple SD Gothic Neo", sans-serif';
+  const m=_mc.measureText(ch);
+  return { w:m.width, asc:m.actualBoundingBoxAscent||px*0.72 };
+}
+
 function buildLayout(){
   const cw=Math.max(200,Math.min(320,W*0.70));
   const rx=cw/2, ry=rx*0.20, cx=W/2;
-  const topY=Math.min(H*0.585,H-215);
-  const bodyH=Math.max(72,cw*0.33);
-  const n=CONFIG.촛불개수;
-  const spread=Math.min(cw*0.56,Math.max(1,n-1)*46);
-  const cands=[];
-  for(let i=0;i<n;i++){
-    const t=n===1?0.5:i/(n-1), dx=(t-0.5)*spread;
-    cands.push({x:cx+dx, base:topY+ry*0.28-Math.pow(dx/rx,2)*ry*0.28,
-                h:46+Math.round(hash(i*3.7)*11), w:10});
+  const topY=Math.min(H*0.575,H-230);
+  const bodyH=Math.max(88,cw*0.40);
+
+  const age=String(CONFIG.나이||'').trim();
+  const cands=[], digits=[];
+
+  if(age){
+    /* 나이 숫자 모양 초 */
+    const px=Math.round(Math.min(74, cw*0.26));
+    const gap=Math.round(px*0.10);
+    const ms=age.split('').map(ch=>measureDigit(ch,px));
+    const total=ms.reduce((a,m)=>a+m.w,0)+gap*(ms.length-1);
+    let x=cx-total/2;
+    const bottom=topY+ry*0.16;
+    ms.forEach((m,i)=>{
+      const dx=x+m.w/2;
+      digits.push({ ch:age[i], x:dx, bottom, px, asc:m.asc });
+      cands.push({ x:dx, base:bottom, h:m.asc, w:11 });
+      x+=m.w+gap;
+    });
+  } else {
+    const n=CONFIG.촛불개수;
+    const spread=Math.min(cw*0.56,Math.max(1,n-1)*46);
+    for(let i=0;i<n;i++){
+      const t=n===1?0.5:i/(n-1), dx=(t-0.5)*spread;
+      cands.push({x:cx+dx, base:topY+ry*0.28-Math.pow(dx/rx,2)*ry*0.28,
+                  h:46+Math.round(hash(i*3.7)*11), w:10});
+    }
   }
-  L={cx,cw,rx,ry,topY,bodyH,cands};
+  L={cx,cw,rx,ry,topY,bodyH,cands,digits};
 }
 
 function outline(g,w){ g.strokeStyle=C.line; g.lineWidth=w; g.lineJoin='round'; g.stroke(); }
@@ -417,7 +449,7 @@ function buildCake(){
   bg.addColorStop(.62,'#FFF6FA'); bg.addColorStop(1,'#EFD3DE');
   g.fillStyle=bg; g.fill(); outline(g,4.5);
 
-  const bandY=topY+bodyH*0.66, bandH=bodyH*0.28;
+  const bandY=topY+bodyH*0.74, bandH=bodyH*0.22;
   g.save();
   g.beginPath();
   g.moveTo(cx-rx,topY); g.lineTo(cx-rx,botY);
@@ -480,24 +512,106 @@ function buildCake(){
   berry(cx-rx*0.10,topY-ry*0.58,0.80);
   berry(cx+rx*0.16,topY+ry*0.02,0.74);
 
-  L.cands.forEach(cd=>{
-    const top=cd.base-cd.h;
-    g.save();
-    g.beginPath(); g.roundRect(cd.x-cd.w/2,top,cd.w,cd.h,[cd.w*.38,cd.w*.38,2,2]);
-    g.fillStyle='#FFFFFF'; g.fill();
-    g.save(); g.clip();
-    g.strokeStyle=C.pink; g.lineWidth=5;
-    for(let k=-2;k<9;k++){
-      const y=top+k*11;
-      g.beginPath(); g.moveTo(cd.x-cd.w,y); g.lineTo(cd.x+cd.w,y+cd.w*1.5); g.stroke();
+  /* 마카롱과 체리 */
+  function macaron(px,py,r,col){
+    g.beginPath(); g.ellipse(px,py-r*0.42,r,r*0.52,0,Math.PI,0); g.closePath();
+    g.fillStyle=col; g.fill(); outline(g,2.8);
+    g.beginPath(); g.roundRect(px-r,py-r*0.30,r*2,r*0.42,r*0.2);
+    g.fillStyle='#FFF3E2'; g.fill(); outline(g,2.6);
+    g.beginPath(); g.ellipse(px,py+r*0.16,r,r*0.52,0,0,Math.PI); g.closePath();
+    g.fillStyle=col; g.fill(); outline(g,2.8);
+  }
+  function cherry(px,py,r){
+    g.beginPath(); g.moveTo(px,py-r*0.9);
+    g.quadraticCurveTo(px+r*1.1,py-r*2.2,px+r*1.7,py-r*2.5);
+    g.strokeStyle='#6E9A55'; g.lineWidth=2.6; g.lineCap='round'; g.stroke();
+    g.beginPath(); g.ellipse(px,py,r,r*0.95,0,0,Math.PI*2);
+    g.fillStyle='#E23A56'; g.fill(); outline(g,2.6);
+    g.beginPath(); g.ellipse(px-r*0.33,py-r*0.33,r*0.22,r*0.28,-0.5,0,Math.PI*2);
+    g.fillStyle='rgba(255,255,255,.75)'; g.fill();
+  }
+  macaron(cx-rx*0.72, topY+ry*0.34, 13, C.pinkL);
+  macaron(cx+rx*0.70, topY+ry*0.40, 12, C.yellow);
+  cherry(cx-rx*0.30, topY+ry*0.56, 7);
+  cherry(cx+rx*0.34, topY+ry*0.50, 6.5);
+
+  /* 나이 숫자 초 */
+  if(L.digits && L.digits.length){
+    L.digits.forEach((d,i)=>{
+      /* 줄무늬는 글자 안쪽에만 — 따로 그려서 얹는다 */
+      const pad=26, dw=Math.ceil(d.px*1.6)+pad*2, dh=Math.ceil(d.asc)+pad*2;
+      const dc=document.createElement('canvas');
+      dc.width=Math.ceil(dw*DPR); dc.height=Math.ceil(dh*DPR);
+      const dg=dc.getContext('2d'); dg.setTransform(DPR,0,0,DPR,0,0);
+      const bx=dw/2, by=pad+d.asc;
+      const FONT='700 '+d.px+'px Jua, "Apple SD Gothic Neo", sans-serif';
+
+      dg.textAlign='center'; dg.textBaseline='alphabetic'; dg.font=FONT;
+      dg.fillStyle = i%2 ? '#FFFFFF' : C.pink;
+      dg.fillText(d.ch, bx, by);
+      dg.globalCompositeOperation='source-atop';
+      dg.strokeStyle = i%2 ? 'rgba(239,109,156,.9)' : 'rgba(255,255,255,.95)';
+      dg.lineWidth=5;
+      for(let k=-3;k<12;k++){
+        const y=pad+k*19;
+        dg.beginPath(); dg.moveTo(bx-dw, y); dg.lineTo(bx+dw, y+dw*0.5); dg.stroke();
+      }
+
+      // 케이크 위에 먼저 테두리를 긋고, 그 위에 줄무늬 글자를 덮는다
+      g.save();
+      g.textAlign='center'; g.textBaseline='alphabetic'; g.font=FONT;
+      g.lineJoin='round'; g.lineWidth=9; g.strokeStyle=C.line;
+      g.strokeText(d.ch, d.x, d.bottom);
+      g.restore();
+      g.drawImage(dc, d.x-bx, d.bottom-by, dw, dh);
+
+      g.beginPath(); g.moveTo(d.x, d.bottom-d.asc); g.lineTo(d.x+0.8, d.bottom-d.asc-7);
+      g.strokeStyle=C.line; g.lineWidth=2.8; g.lineCap='round'; g.stroke();
+    });
+  } else {
+    L.cands.forEach(cd=>{
+      const top=cd.base-cd.h;
+      g.save();
+      g.beginPath(); g.roundRect(cd.x-cd.w/2,top,cd.w,cd.h,[cd.w*.38,cd.w*.38,2,2]);
+      g.fillStyle='#FFFFFF'; g.fill();
+      g.save(); g.clip();
+      g.strokeStyle=C.pink; g.lineWidth=5;
+      for(let k=-2;k<9;k++){
+        const y=top+k*11;
+        g.beginPath(); g.moveTo(cd.x-cd.w,y); g.lineTo(cd.x+cd.w,y+cd.w*1.5); g.stroke();
+      }
+      g.restore();
+      g.beginPath(); g.roundRect(cd.x-cd.w/2,top,cd.w,cd.h,[cd.w*.38,cd.w*.38,2,2]);
+      outline(g,3.2);
+      g.restore();
+      g.beginPath(); g.moveTo(cd.x,top); g.lineTo(cd.x+0.8,top-6);
+      g.strokeStyle=C.line; g.lineWidth=2.6; g.lineCap='round'; g.stroke();
+    });
+  }
+
+  /* 초콜릿 이름판 */
+  if(CONFIG.이름){
+    const pw=Math.min(rx*1.34,178);
+    const py=topY+ry+20;
+    const ph=Math.max(30,Math.min(40,(bandY-py)-8));
+    g.beginPath(); g.roundRect(cx-pw/2,py,pw,ph,8);
+    const cg2=g.createLinearGradient(0,py,0,py+ph);
+    cg2.addColorStop(0,'#7A4A2C'); cg2.addColorStop(1,'#4E2C19');
+    g.fillStyle=cg2; g.fill(); outline(g,3.4);
+    g.beginPath(); g.roundRect(cx-pw/2+5,py+5,pw-10,ph-10,5);
+    g.strokeStyle='rgba(255,238,214,.32)'; g.lineWidth=1.5; g.stroke();
+
+    g.textAlign='center'; g.textBaseline='alphabetic';
+    g.fillStyle='#FFF4E4';
+    g.font='700 '+Math.round(ph*0.42)+'px Jua, "Apple SD Gothic Neo", sans-serif';
+    g.fillText(CONFIG.이름, cx, py+ph*0.50);
+    if(CONFIG.생일){
+      g.fillStyle='rgba(255,244,228,.78)';
+      g.font='700 '+Math.round(ph*0.26)+'px Jua, "Apple SD Gothic Neo", sans-serif';
+      g.fillText(CONFIG.생일, cx, py+ph*0.82);
     }
-    g.restore();
-    g.beginPath(); g.roundRect(cd.x-cd.w/2,top,cd.w,cd.h,[cd.w*.38,cd.w*.38,2,2]);
-    outline(g,3.2);
-    g.restore();
-    g.beginPath(); g.moveTo(cd.x,top); g.lineTo(cd.x+0.8,top-6);
-    g.strokeStyle=C.line; g.lineWidth=2.6; g.lineCap='round'; g.stroke();
-  });
+  }
+
   return {c,x0,y0,w,h};
 }
 
@@ -561,7 +675,7 @@ function douse(i){
       kind:k%3===0?'star':'heart', ci:Math.floor(rnd()*6),
       s:11+rnd()*10, rot:rnd()*6.3, rs:(rnd()-0.5)*0.3, t:0, life:52+rnd()*30});
   }
-  dusk=Math.min(1,dusk+1/Math.max(1,CONFIG.촛불개수));
+  dusk=Math.min(1,dusk+1/Math.max(1,candles.length));
   if(candles.every(x=>!x.lit)) finish();
 }
 function blow(power){
