@@ -722,14 +722,16 @@ function render(now){
 
 /* ─────────── 마이크 ─────────── */
 let audioCtx = null, analyser = null, freq = null, timeBuf = null;
-let micOn = false, floorLvl = 0.03, calibN = 0, calibDone = false, micRaf = null, blowHold = 0;
+let micOn = false, micRaf = null, blowHold = 0;
+let baseline = 0, primed = 0, blowing = false, songBus = null, ducked = false, stuck = 0;
+const DEBUG = /[?&]debug/.test(location.search);
 
 async function openMic(){
   try{
     let stream;
     try{
       stream = await navigator.mediaDevices.getUserMedia({
-        audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:true }
+        audio:{ echoCancellation:true, noiseSuppression:false, autoGainControl:false }
       });
     }catch(_){
       stream = await navigator.mediaDevices.getUserMedia({ audio:true });
@@ -772,28 +774,53 @@ function readLevel(){
 
 function micLoop(){
   const lvl = readLevel();
+  const S = Math.max(0.4, CONFIG.감도 || 1);
 
-  if (!calibDone){                     // 그 방의 소음 바닥을 먼저 잰다
-    floorLvl = Math.max(floorLvl, lvl);
-    if (++calibN > 72){
-      calibDone = true;
-      $('micNote').textContent = '준비됐어';
-      setTimeout(() => { $('micNote').textContent = ''; }, 1500);
-    }
+  /* 처음 0.6초는 그 자리의 소리를 그대로 받아 기준선을 세운다 */
+  if (primed < 36){
+    primed++;
+    baseline = (primed === 1) ? lvl : baseline + (lvl - baseline) * 0.25;
+    $('micNote').textContent = '주변 소리 맞추는 중…';
+    if (DEBUG) dbg(lvl, 0, 0);
     micRaf = requestAnimationFrame(micLoop);
     return;
   }
+  if (primed === 36){
+    primed = 37;
+    $('micNote').textContent = '준비됐어';
+    setTimeout(() => { $('micNote').textContent = ''; }, 1500);
+  }
 
-  const S    = Math.max(0.4, CONFIG.감도 || 1);
-  const gate = (floorLvl * 1.25 + 0.016) / S;
-  const raw  = Math.max(0, Math.min(1, (lvl - gate) / (0.10 / S)));
+  const gate = baseline * 1.15 + 0.030 / S;
+  const raw  = Math.max(0, Math.min(1, (lvl - gate) / (0.09 / S)));
 
-  /* 말소리는 음절마다 끊기고 숨은 이어진다 — 몇 프레임 연속인지로 가른다 */
-  if (raw > 0.02) blowHold++; else blowHold = Math.max(0, blowHold - 4);
+  if (raw > 0.02) blowHold++; else blowHold = Math.max(0, blowHold - 6);
+  blowing = blowHold >= 7;
 
-  if (blowHold >= 4){
-    const p = 0.30 + 0.70 * raw;                    // 약하게 불어도 최소한의 힘은 실린다
-    const push = 1 + Math.min(1.3, blowHold / 50);  // 계속 불면 점점 잘 꺼진다
+  /* 불기 시작하면 노래가 비켜준다 — 스피커 소리가 숨소리를 덮지 않도록 */
+  if (blowing && !ducked && songBus){
+    ducked = true;
+    try {
+      songBus.gain.cancelScheduledValues(audioCtx.currentTime);
+      songBus.gain.setValueAtTime(songBus.gain.value, audioCtx.currentTime);
+      songBus.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 0.35);
+    } catch(e){}
+  }
+
+  /* 부는 동안에는 기준선을 얼린다.
+     그래야 노래·말소리처럼 계속 나는 소리에는 적응하면서도 숨은 놓치지 않는다. */
+  /* 후보 신호가 잡혀 있는 동안에는 기준선을 완전히 얼린다.
+     조금이라도 따라 올라가면 긴 숨이 스스로를 지워버린다.
+     대신 6초 넘게 묶여 있으면 주변이 실제로 시끄러워진 것으로 보고 다시 잰다. */
+  stuck = blowHold > 0 ? stuck + 1 : 0;
+  if (stuck > 360){ baseline = lvl; blowHold = 0; stuck = 0; }
+  else if (blowHold === 0) baseline += (lvl - baseline) * 0.05;
+
+  if (blowing){
+    const p = 0.30 + 0.70 * raw;
+    /* 짧게 터지는 소음은 거의 힘이 실리지 않고, 이어지는 숨에만 온전히 실린다 */
+    const ramp = Math.min(1, Math.max(0, (blowHold - 7) / 26));
+    const push = 0.30 + 1.75 * ramp;
     wind = wind * 0.55 + Math.max(0.35, raw) * 0.45;
     blow(p * push * S);
   } else {
@@ -801,9 +828,28 @@ function micLoop(){
     recover();
   }
 
-  $('meterFill').style.width = Math.round(Math.min(1, Math.max(raw, lvl / (gate + 0.10))) * 100) + '%';
+  $('meterFill').style.width = Math.round(Math.max(raw, Math.min(1, lvl / (gate + 0.09))) * 100) + '%';
+  if (DEBUG) dbg(lvl, gate, raw);
 
   micRaf = requestAnimationFrame(micLoop);
+}
+
+/* ?debug=1 을 주소 뒤에 붙이면 실제 수치가 보인다 */
+let dbgEl = null, dbgN = 0;
+function dbg(lvl, gate, raw){
+  if (!dbgEl){
+    dbgEl = document.createElement('div');
+    dbgEl.style.cssText = 'position:fixed;left:8px;top:8px;z-index:9;font:11px/1.6 monospace;'
+      + 'color:#FFC24A;background:rgba(0,0,0,.6);padding:7px 9px;border-radius:6px;white-space:pre;pointer-events:none';
+    document.body.appendChild(dbgEl);
+  }
+  if (++dbgN % 6) return;
+  dbgEl.textContent =
+    'lvl   ' + lvl.toFixed(3) + '\n' +
+    'base  ' + baseline.toFixed(3) + '\n' +
+    'gate  ' + gate.toFixed(3) + '\n' +
+    'raw   ' + raw.toFixed(2) + '\n' +
+    'hold  ' + blowHold + (blowing ? '  ● 부는 중' : '');
 }
 
 /* 촛불이 꺼질 때의 숨소리 — 잡음을 짧게 터뜨려 만든다 */
@@ -836,8 +882,9 @@ function playSong(){
   ];
   const beat = 0.50, start0 = audioCtx.currentTime + 0.8;
   const bus = audioCtx.createGain();
-  bus.gain.value = 0.9;
+  bus.gain.value = 0.42;
   bus.connect(audioCtx.destination);
+  songBus = bus; ducked = false;
 
   song.forEach(([f, at, dur]) => {
     const st = start0 + at * beat, len = Math.max(0.75, dur * beat * 1.8);
@@ -927,7 +974,7 @@ cv.addEventListener('click', e => {
 $('again').addEventListener('click', () => {
   clearTimeout(hintTimer);
   resetCandles();
-  calibDone = false; calibN = 0; floorLvl = 0.03; blowHold = 0;
+  baseline = 0; primed = 0; blowHold = 0; blowing = false; stuck = 0;
   phase = 'cake'; reveal = 1;
   ember = 0; emberOn = false; dimPulse = 0;
   $('prompt').style.opacity = '1';
