@@ -1,0 +1,589 @@
+<title>촛불 편지</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap">
+
+<style>
+:root{
+  --ink:        #F2E4D0;
+  --ink-soft:   #A2907C;
+  --ink-faint:  #6B5D4F;
+  --night:      #14100E;
+  --night-lift: #1E1714;
+  --wax:        #E8DCC8;
+  --wax-shade:  #B9A98E;
+  --flame-hot:  #FFF3C4;
+  --flame-mid:  #FFC24A;
+  --flame-low:  #FF8A1F;
+  --amber:      #E8B86D;
+
+  --wind: 0;
+  --room: 1;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+body{
+  background: var(--night);
+  color: var(--ink);
+  font-family:"Gowun Dodum","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  min-height:100svh;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* 방 전체를 비추는 촛불빛 — 촛불이 꺼질수록 어두워진다 */
+.room{
+  position:fixed; inset:0;
+  background:
+    radial-gradient(120% 90% at 50% 74%,
+      rgba(255,168,60, calc(0.20 * var(--room))) 0%,
+      rgba(255,120,20, calc(0.09 * var(--room))) 30%,
+      rgba(20,16,14,0) 68%),
+    var(--night);
+  transition: background 900ms ease;
+  pointer-events:none;
+  z-index:0;
+}
+
+.stage{
+  position:relative; z-index:1;
+  min-height:100svh;
+  display:grid;
+  place-items:center;
+  padding:32px 24px;
+}
+
+.scene{
+  grid-area:1/1;
+  width:100%;
+  max-width:560px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:28px;
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(10px);
+  transition:opacity 900ms ease, transform 900ms ease, visibility 0s linear 900ms;
+}
+.scene[data-on="1"]{
+  opacity:1;
+  visibility:visible;
+  transform:none;
+  transition:opacity 1100ms ease, transform 1100ms ease, visibility 0s;
+}
+
+/* ---------- 1. 여는 화면 ---------- */
+.opening{ cursor:pointer; text-align:center; gap:36px; }
+
+.wick-mark{
+  width:5px; height:5px; border-radius:50%;
+  background:var(--flame-mid);
+  box-shadow:0 0 18px 6px rgba(255,170,60,.55), 0 0 46px 18px rgba(255,120,20,.22);
+  animation:pulse 2.6s ease-in-out infinite;
+}
+@keyframes pulse{
+  0%,100%{ transform:scale(1);   opacity:.85; }
+  50%    { transform:scale(1.5); opacity:1; }
+}
+
+.to{
+  font-family:"Gowun Batang",serif;
+  font-size:clamp(26px,7vw,38px);
+  font-weight:700;
+  letter-spacing:.01em;
+  text-wrap:balance;
+}
+.hint{
+  font-size:14px;
+  color:var(--ink-soft);
+  line-height:1.9;
+}
+.hint em{ font-style:normal; color:var(--amber); }
+
+/* ---------- 2. 케이크 ---------- */
+.cake-scene{ gap:0; }
+
+.candles{
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  gap:26px;
+  margin-bottom:6px;
+}
+
+.candle{
+  --life:1;
+  position:relative;
+  width:13px;
+  height:62px;
+  border-radius:3px 3px 1px 1px;
+  background:linear-gradient(100deg,var(--wax-shade) 0%,var(--wax) 42%,var(--wax) 62%,#9C8C72 100%);
+  box-shadow:0 6px 14px rgba(0,0,0,.5);
+  cursor:pointer;
+}
+.candle::after{ /* 심지 */
+  content:"";
+  position:absolute; left:50%; bottom:100%;
+  width:2px; height:6px; margin-left:-1px;
+  background:#3A2E24;
+  border-radius:1px;
+}
+
+.flame-wrap{
+  position:absolute; left:50%; bottom:100%;
+  margin:0 0 4px -9px;
+  width:18px; height:42px;
+  transform-origin:50% 100%;
+  transform:
+    rotate(calc(var(--wind) * 24deg))
+    scale(calc(0.35 + 0.65 * var(--life)));
+  opacity:var(--life);
+  transition:opacity 220ms ease;
+  pointer-events:none;
+}
+.candle[data-lit="0"] .flame-wrap{ opacity:0; transform:scale(.2); }
+
+.flame{
+  position:absolute; inset:0;
+  border-radius:50% 50% 44% 44% / 64% 64% 36% 36%;
+  background:radial-gradient(ellipse at 50% 76%,
+    var(--flame-hot) 0%,
+    var(--flame-mid) 30%,
+    var(--flame-low) 60%,
+    rgba(255,88,0,.30) 84%,
+    rgba(255,88,0,0) 100%);
+  filter:blur(.5px);
+  transform-origin:50% 100%;
+  animation:flicker 200ms infinite alternate ease-in-out;
+}
+@keyframes flicker{
+  from{ transform:scaleY(1)    scaleX(1)    translateX(-.3px); }
+  to  { transform:scaleY(1.09) scaleX(.94)  translateX(.3px); }
+}
+
+.halo{
+  position:absolute; left:50%; bottom:100%;
+  width:150px; height:150px;
+  margin:0 0 -46px -75px;
+  border-radius:50%;
+  background:radial-gradient(circle,rgba(255,168,60,.30) 0%,rgba(255,120,20,.10) 38%,rgba(255,120,20,0) 68%);
+  opacity:var(--life);
+  pointer-events:none;
+  transition:opacity 400ms ease;
+}
+
+/* 꺼진 뒤 피어오르는 연기 */
+.smoke{
+  position:absolute; left:50%; bottom:100%;
+  width:3px; height:3px; margin-left:-1.5px;
+  border-radius:50%;
+  background:rgba(226,214,198,.5);
+  opacity:0;
+  pointer-events:none;
+}
+.candle[data-lit="0"] .smoke{ animation:smoke 2.4s ease-out forwards; }
+@keyframes smoke{
+  0%  { opacity:.55; transform:translate(0,0) scale(1); }
+  40% { opacity:.35; transform:translate(-7px,-30px) scale(3.4); }
+  100%{ opacity:0;   transform:translate(5px,-72px) scale(7); filter:blur(4px); }
+}
+
+.cake{
+  position:relative;
+  width:min(290px,74vw);
+}
+.tier{
+  position:relative;
+  border-radius:8px;
+  box-shadow:inset 0 1px 0 rgba(255,236,206,.14), 0 14px 34px rgba(0,0,0,.55);
+}
+.tier-top{
+  height:34px;
+  background:linear-gradient(180deg,#4A3A2E 0%,#33271F 100%);
+  border-radius:8px 8px 4px 4px;
+  margin:0 22px;
+}
+.tier-top::before{ /* 크림 */
+  content:"";
+  position:absolute; inset:0 0 auto 0;
+  height:11px;
+  background:
+    radial-gradient(9px 11px at 12px 100%,#E3D2B6 60%,transparent 61%),
+    radial-gradient(9px 11px at 42px 100%,#E3D2B6 60%,transparent 61%),
+    radial-gradient(9px 11px at 72px 100%,#E3D2B6 60%,transparent 61%),
+    radial-gradient(9px 11px at 102px 100%,#E3D2B6 60%,transparent 61%),
+    radial-gradient(9px 11px at 132px 100%,#E3D2B6 60%,transparent 61%),
+    radial-gradient(9px 11px at 162px 100%,#E3D2B6 60%,transparent 61%),
+    radial-gradient(9px 11px at 192px 100%,#E3D2B6 60%,transparent 61%),
+    linear-gradient(#EDDDC2,#DCC8A8);
+  border-radius:8px 8px 0 0;
+}
+.tier-base{
+  height:52px;
+  margin-top:3px;
+  background:linear-gradient(180deg,#41332A 0%,#2A211A 100%);
+}
+/* 촛불빛이 케이크 위에 떨어지는 결 */
+.cake::after{
+  content:"";
+  position:absolute; inset:-18px -10px auto -10px; height:120px;
+  background:radial-gradient(60% 70% at 50% 0%,rgba(255,178,80,.28) 0%,rgba(255,150,40,0) 70%);
+  opacity:var(--room);
+  transition:opacity 800ms ease;
+  pointer-events:none;
+}
+
+.prompt{
+  margin-top:34px;
+  min-height:56px;
+  text-align:center;
+  font-size:15px;
+  line-height:1.9;
+  color:var(--ink-soft);
+  transition:opacity 500ms ease;
+}
+.prompt strong{
+  display:block;
+  font-family:"Gowun Batang",serif;
+  font-size:19px;
+  font-weight:700;
+  color:var(--ink);
+  margin-bottom:4px;
+}
+.prompt .sub{ font-size:13px; color:var(--ink-faint); }
+
+.meter{
+  width:150px; height:2px;
+  margin:14px auto 0;
+  background:rgba(232,184,109,.14);
+  border-radius:2px;
+  overflow:hidden;
+}
+.meter i{
+  display:block; height:100%; width:0%;
+  background:linear-gradient(90deg,var(--flame-low),var(--flame-mid));
+  transition:width 90ms linear;
+}
+
+/* ---------- 3. 편지 ---------- */
+.letter{ gap:0; text-align:center; }
+
+.letter-mark{
+  font-family:"Gowun Dodum",sans-serif;
+  font-size:11px;
+  letter-spacing:.34em;
+  text-transform:uppercase;
+  color:var(--amber);
+  margin-bottom:26px;
+}
+
+.letter p{
+  font-family:"Gowun Batang",serif;
+  font-size:clamp(17px,4.4vw,20px);
+  line-height:2.15;
+  color:var(--ink);
+  max-width:34ch;
+  margin:0 auto 1.05em;
+  text-wrap:balance;
+  opacity:0;
+  transform:translateY(8px);
+  animation:rise 1.5s ease forwards;
+}
+@keyframes rise{ to{ opacity:1; transform:none; } }
+
+.sign{
+  margin-top:22px;
+  font-family:"Gowun Batang",serif;
+  font-size:15px;
+  color:var(--ink-soft);
+  opacity:0;
+  animation:rise 1.5s ease forwards;
+}
+
+.again{
+  margin-top:44px;
+  background:none;
+  border:1px solid rgba(232,184,109,.28);
+  color:var(--ink-soft);
+  font-family:"Gowun Dodum",sans-serif;
+  font-size:12px;
+  letter-spacing:.06em;
+  padding:9px 20px;
+  border-radius:999px;
+  cursor:pointer;
+  opacity:0;
+  animation:rise 1.5s ease 1.6s forwards;
+  transition:color 240ms ease, border-color 240ms ease;
+}
+.again:hover,.again:focus-visible{ color:var(--amber); border-color:rgba(232,184,109,.6); }
+
+:focus-visible{ outline:2px solid var(--amber); outline-offset:4px; border-radius:4px; }
+
+@media (prefers-reduced-motion:reduce){
+  *{ animation-duration:.01ms !important; animation-iteration-count:1 !important; }
+  .letter p,.sign,.again{ opacity:1; transform:none; }
+}
+</style>
+
+<div class="room" id="room"></div>
+
+<div class="stage">
+
+  <!-- 1 -->
+  <section class="scene opening" id="s1" data-on="1" role="button" tabindex="0" aria-label="시작하기">
+    <div class="wick-mark"></div>
+    <h1 class="to" id="openTitle">누나, 생일 축하해</h1>
+    <p class="hint">화면을 한 번 눌러줘<br><em>소리를 켜고</em> 보면 더 좋아</p>
+  </section>
+
+  <!-- 2 -->
+  <section class="scene cake-scene" id="s2" aria-live="polite">
+    <div class="candles" id="candles"></div>
+    <div class="cake">
+      <div class="tier tier-top"></div>
+      <div class="tier tier-base"></div>
+    </div>
+    <div class="prompt" id="prompt">
+      <strong>후— 하고 불어봐</strong>
+      <span class="sub" id="sub">폰에 대고 천천히</span>
+      <div class="meter"><i id="meterFill"></i></div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="scene letter" id="s3">
+    <div class="letter-mark">MADE FOR YOU</div>
+    <div id="letterBody"></div>
+    <div class="sign" id="sign"></div>
+    <button class="again" id="again" type="button">다시 보기</button>
+  </section>
+
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   여기만 고치면 됩니다
+   ══════════════════════════════════════════════════ */
+const CONFIG = {
+  호칭: "누나",
+
+  촛불개수: 3,
+
+  편지: [
+    "평소에 이런 말 안 하는데",
+    "오늘은 해야 될 것 같아서.",
+    "누나 덕분에 큰 거,",
+    "나도 알아.",
+    "생일 축하해, 누나."
+  ],
+
+  서명: "— 하나뿐인 동생이",
+
+  노래재생: true
+};
+/* ══════════════════════════════════════════════════ */
+
+const $ = (id) => document.getElementById(id);
+const room = $('room');
+let audioCtx = null, analyser = null, freq = null, micOn = false;
+let candles = [], raf = null, started = false, hintTimer = null;
+
+/* ---------- 화면 준비 ---------- */
+$('openTitle').textContent = `${CONFIG.호칭}, 생일 축하해`;
+
+CONFIG.편지.forEach((line, i) => {
+  const p = document.createElement('p');
+  p.textContent = line;
+  p.style.animationDelay = (0.5 + i * 0.75) + 's';
+  $('letterBody').appendChild(p);
+});
+$('sign').textContent = CONFIG.서명;
+$('sign').style.animationDelay = (0.5 + CONFIG.편지.length * 0.75 + 0.4) + 's';
+
+function buildCandles(){
+  $('candles').innerHTML = '';
+  candles = [];
+  for (let i = 0; i < CONFIG.촛불개수; i++){
+    const el = document.createElement('div');
+    el.className = 'candle';
+    el.dataset.lit = '1';
+    el.style.height = (56 + Math.round(Math.random() * 14)) + 'px';
+    el.innerHTML = '<div class="halo"></div><div class="flame-wrap"><div class="flame"></div></div><div class="smoke"></div>';
+    el.addEventListener('click', () => douse(i));
+    $('candles').appendChild(el);
+    candles.push({ el, life: 1, tough: 0.75 + Math.random() * 0.6, lit: true });
+  }
+  paintRoom();
+}
+
+function show(id){
+  ['s1','s2','s3'].forEach(s => $(s).dataset.on = (s === id) ? '1' : '0');
+}
+
+/* ---------- 촛불 ---------- */
+function paintRoom(){
+  const alive = candles.reduce((a, c) => a + (c.lit ? c.life : 0), 0);
+  const ratio = CONFIG.촛불개수 ? alive / CONFIG.촛불개수 : 0;
+  room.style.setProperty('--room', (0.18 + ratio * 0.82).toFixed(3));
+  document.querySelector('.cake').style.setProperty('--room', ratio.toFixed(3));
+}
+
+function douse(i){
+  const c = candles[i];
+  if (!c || !c.lit) return;
+  c.lit = false;
+  c.life = 0;
+  c.el.dataset.lit = '0';
+  c.el.style.setProperty('--life', '0');
+  paintRoom();
+  if (candles.every(x => !x.lit)) finish();
+}
+
+function blow(power){
+  let changed = false;
+  candles.forEach((c, i) => {
+    if (!c.lit) return;
+    c.life -= power * 0.055 / c.tough;
+    if (c.life <= 0) { douse(i); }
+    else { c.el.style.setProperty('--life', c.life.toFixed(3)); changed = true; }
+  });
+  if (changed) paintRoom();
+}
+
+function recover(){
+  let changed = false;
+  candles.forEach(c => {
+    if (c.lit && c.life < 1){
+      c.life = Math.min(1, c.life + 0.012);
+      c.el.style.setProperty('--life', c.life.toFixed(3));
+      changed = true;
+    }
+  });
+  if (changed) paintRoom();
+}
+
+function finish(){
+  if (raf) cancelAnimationFrame(raf);
+  clearTimeout(hintTimer);
+  $('prompt').style.opacity = '0';
+  document.documentElement.style.setProperty('--wind', '0');
+  setTimeout(() => show('s3'), 1600);
+}
+
+/* ---------- 마이크 ---------- */
+async function openMic(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+    });
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.55;
+    src.connect(analyser);
+    freq = new Uint8Array(analyser.frequencyBinCount);
+    micOn = true;
+  }catch(e){
+    micOn = false;
+    $('prompt').querySelector('strong').textContent = '촛불을 눌러서 꺼줘';
+    $('sub').textContent = '마이크 없이도 괜찮아';
+    $('prompt').querySelector('.meter').style.display = 'none';
+  }
+}
+
+/* 부는 소리는 저역에 에너지가 몰린다 — 말소리·소음과 구분한다 */
+function readBreath(){
+  if (!micOn) return 0;
+  analyser.getByteFrequencyData(freq);
+  const hz = audioCtx.sampleRate / analyser.fftSize;
+  const lo = Math.max(1, Math.round(60 / hz)), loEnd = Math.round(260 / hz);
+  const mdStart = Math.round(700 / hz), mdEnd = Math.round(2600 / hz);
+
+  let low = 0, n1 = 0, mid = 0, n2 = 0;
+  for (let i = lo; i <= loEnd && i < freq.length; i++){ low += freq[i]; n1++; }
+  for (let i = mdStart; i <= mdEnd && i < freq.length; i++){ mid += freq[i]; n2++; }
+  low = n1 ? low / n1 : 0;
+  mid = n2 ? mid / n2 : 0;
+
+  if (low < 42) return 0;
+  if (low < mid * 1.25) return 0;              // 말소리·음악 걸러내기
+  return Math.min(1, (low - 42) / 78);
+}
+
+function loop(){
+  const p = readBreath();
+  document.documentElement.style.setProperty('--wind', p.toFixed(3));
+  $('meterFill').style.width = Math.round(p * 100) + '%';
+  if (p > 0.08) blow(p); else recover();
+  raf = requestAnimationFrame(loop);
+}
+
+/* ---------- 생일 노래 (오르골) ---------- */
+function playSong(){
+  if (!CONFIG.노래재생 || !audioCtx) return;
+  const N = { G4:392.00, A4:440.00, B4:493.88, C5:523.25, D5:587.33, E5:659.25, F5:698.46, G5:783.99 };
+  const song = [
+    [N.G4,0,.5],[N.G4,.5,.5],[N.A4,1,1],[N.G4,2,1],[N.C5,3,1],[N.B4,4,2],
+    [N.G4,6,.5],[N.G4,6.5,.5],[N.A4,7,1],[N.G4,8,1],[N.D5,9,1],[N.C5,10,2],
+    [N.G4,12,.5],[N.G4,12.5,.5],[N.G5,13,1],[N.E5,14,1],[N.C5,15,1],[N.B4,16,1],[N.A4,17,1.5],
+    [N.F5,19,.5],[N.F5,19.5,.5],[N.E5,20,1],[N.C5,21,1],[N.D5,22,1],[N.C5,23,2.5]
+  ];
+  const beat = 0.50, t0 = audioCtx.currentTime + 0.7;
+
+  song.forEach(([f, at, dur]) => {
+    const start = t0 + at * beat, len = Math.max(0.7, dur * beat * 1.7);
+    [[1, 0.16], [2, 0.05], [3, 0.018]].forEach(([mult, amp]) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f * mult;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(amp, start + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + len);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(start);
+      o.stop(start + len + 0.05);
+    });
+  });
+}
+
+/* ---------- 시작 ---------- */
+async function begin(){
+  if (started) return;
+  started = true;
+
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+  buildCandles();
+  show('s2');
+  playSong();
+
+  await openMic();
+  if (micOn) loop();
+
+  hintTimer = setTimeout(() => {
+    if (candles.some(c => c.lit) && micOn){
+      $('sub').textContent = '잘 안 되면 촛불을 톡 눌러도 돼';
+    }
+  }, 14000);
+}
+
+$('s1').addEventListener('click', begin);
+$('s1').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); begin(); }
+});
+
+$('again').addEventListener('click', () => {
+  clearTimeout(hintTimer);
+  buildCandles();
+  $('prompt').style.opacity = '1';
+  show('s2');
+  if (micOn) { if (raf) cancelAnimationFrame(raf); loop(); }
+  hintTimer = setTimeout(() => {
+    if (candles.some(c => c.lit) && micOn) $('sub').textContent = '잘 안 되면 촛불을 톡 눌러도 돼';
+  }, 14000);
+});
+</script>
