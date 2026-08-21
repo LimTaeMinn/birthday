@@ -31,6 +31,43 @@ body{
 }
 .scene[data-on="1"]{ opacity:1; visibility:visible; transition:opacity 1100ms ease, visibility 0s; }
 
+/* 0. 로딩 */
+.loading{ text-align:center; }
+.hearts{ display:flex; gap:16px; }
+.hearts i{
+  width:28px; height:28px; display:block;
+  animation:hop 1.05s ease-in-out infinite;
+}
+.hearts i:nth-child(2){ animation-delay:.16s; }
+.hearts i:nth-child(3){ animation-delay:.32s; }
+.hearts svg,.bar b svg{
+  width:100%; height:100%; display:block;
+  stroke:var(--line); stroke-width:2.6; stroke-linejoin:round; paint-order:stroke fill;
+  filter:drop-shadow(0 2px 0 rgba(94,51,46,.16));
+}
+.hearts i:nth-child(1) svg{ fill:var(--pink); }
+.hearts i:nth-child(2) svg{ fill:#fff; }
+.hearts i:nth-child(3) svg{ fill:var(--yellow); }
+@keyframes hop{ 0%,60%,100%{ transform:translateY(0) } 30%{ transform:translateY(-15px) } }
+
+.loadtxt{ margin-top:26px; font-size:17px; color:var(--text); letter-spacing:.02em; }
+.bar{
+  position:relative; width:min(230px,62vw); height:16px; margin-top:18px;
+  background:#fff; border:3px solid var(--line); border-radius:999px;
+}
+.bar span{
+  display:block; height:100%; width:0%; border-radius:999px;
+  background:linear-gradient(90deg,var(--yellow),var(--pink));
+  transition:width .22s ease;
+}
+.bar b{
+  position:absolute; top:-12px; left:0; width:24px; height:24px;
+  margin-left:-12px; transition:left .22s ease;
+}
+.bar b svg{ fill:var(--pink-d); }
+
+.pct{ margin-top:14px; font-size:13px; color:var(--text-2); font-variant-numeric:tabular-nums; }
+
 /* 1. 여는 화면 */
 .opening{ text-align:center; pointer-events:auto; cursor:pointer; }
 .opening .to{ margin-top:22vh; }
@@ -46,12 +83,14 @@ body{
 .lead em{ font-style:normal; color:var(--pink-d); }
 .note{ margin-top:12px; font-size:12.5px; line-height:1.8; color:var(--text-2); }
 .tap{
-  margin-top:30px; font-size:15px; color:#fff;
+  margin-top:30px; font-size:16px; color:#fff; font-family:"Jua",sans-serif;
+  cursor:pointer;
   background:var(--pink); border:3px solid var(--line); border-radius:999px;
   padding:11px 30px; box-shadow:0 4px 0 var(--line);
   animation:bob 1.9s ease-in-out infinite;
 }
 @keyframes bob{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+.tap:active{ transform:translateY(4px); box-shadow:none; animation:none; }
 
 /* 2. 케이크 */
 .cake-scene{ justify-content:flex-end; height:100%; padding-bottom:5vh; }
@@ -116,6 +155,7 @@ body{
 
 @media (prefers-reduced-motion:reduce){
   .tap{ animation:none; }
+  .hearts i{ animation:none; }
   .card,.letter p,.sign,.again{ opacity:1; transform:none; animation:none; }
 }
 </style>
@@ -123,11 +163,18 @@ body{
 <canvas id="scene"></canvas>
 
 <div class="stage">
-  <section class="scene opening" id="s1" data-on="1" role="button" tabindex="0" aria-label="시작하기">
+  <section class="scene loading" id="s0" data-on="1">
+    <div class="hearts"><i><svg viewBox="0 0 24 24"><path d="M12 21.3 10.5 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.5 11.5L12 21.3z"/></svg></i><i><svg viewBox="0 0 24 24"><path d="M12 21.3 10.5 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.5 11.5L12 21.3z"/></svg></i><i><svg viewBox="0 0 24 24"><path d="M12 21.3 10.5 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.5 11.5L12 21.3z"/></svg></i></div>
+    <p class="loadtxt">준비하는 중</p>
+    <div class="bar"><span id="barFill"></span><b id="barBow"><svg viewBox="0 0 24 24"><path d="M12 21.3 10.5 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.5 11.5L12 21.3z"/></svg></b></div>
+    <p class="pct" id="pct">0%</p>
+  </section>
+
+  <section class="scene opening" id="s1" role="button" tabindex="0" aria-label="시작하기">
     <h1 class="to" id="openTitle">누나, 생일 축하해</h1>
     <p class="lead">촛불은 <em>진짜로 불어서</em> 꺼야 해.<br>마이크는 <em>허용</em>을 눌러줘.</p>
     <p class="note">소리를 켜고 봐줘.<br>아이폰이면 무음 스위치도.</p>
-    <p class="tap">눌러서 시작</p>
+    <button class="tap" id="startBtn" type="button">눌러서 시작</button>
   </section>
 
   <section class="scene cake-scene" id="s2" aria-live="polite">
@@ -464,20 +511,31 @@ function buildBalloons(){
   }
 }
 
-function resize(){
+function resizeCanvas(){
   DPR=Math.min(2,window.devicePixelRatio||1);
   W=window.innerWidth; H=window.innerHeight;
   cv.width=Math.ceil(W*DPR); cv.height=Math.ceil(H*DPR);
   cv.style.width=W+'px'; cv.style.height=H+'px';
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  buildLayout(); buildSprites();
-  skyDay=skySprite('#FDE3EC','#F9BDD5');
-  skyDusk=skySprite('#FBC6DD','#F09EC0');
-  cloudSprite=buildClouds();
-  cakeSprite=buildCake();
-  garlandSprite=buildGarland();
-  giftSprite=buildGifts();
-  buildBalloons();
+  const gr=ctx.createLinearGradient(0,0,0,H);
+  gr.addColorStop(0,'#FDE3EC'); gr.addColorStop(1,'#F9BDD5');
+  ctx.fillStyle=gr; ctx.fillRect(0,0,W,H);
+  buildLayout();
+}
+
+/* 만드는 데 시간이 걸리는 것들 — 로딩 화면에서 한 단계씩 나눠 만든다 */
+const BUILD=[
+  ()=>{ buildSprites(); },
+  ()=>{ skyDay=skySprite('#FDE3EC','#F9BDD5'); skyDusk=skySprite('#FBC6DD','#F09EC0'); },
+  ()=>{ cloudSprite=buildClouds(); },
+  ()=>{ cakeSprite=buildCake(); },
+  ()=>{ garlandSprite=buildGarland(); giftSprite=buildGifts(); buildBalloons(); }
+];
+
+function resize(){
+  if(!booted) return;
+  resizeCanvas();
+  BUILD.forEach(fn=>fn());
   if(candles.length!==L.cands.length) resetCandles();
 }
 
@@ -931,7 +989,7 @@ CONFIG.편지.forEach((line,i)=>{
 $('sign').textContent=CONFIG.서명;
 $('sign').style.animationDelay=(0.5+CONFIG.편지.length*0.55+0.4)+'s';
 
-function show(id){ ['s1','s2','s3'].forEach(s=>$(s).dataset.on=(s===id)?'1':'0'); }
+function show(id){ ['s0','s1','s2','s3'].forEach(s=>$(s).dataset.on=(s===id)?'1':'0'); }
 
 function finish(){
   clearTimeout(hintTimer);
@@ -959,6 +1017,7 @@ async function start(){
   },9000);
 }
 
+$('startBtn').addEventListener('click',e=>{ e.stopPropagation(); start(); });
 $('s1').addEventListener('click',start);
 $('s1').addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); start(); } });
 
@@ -989,6 +1048,70 @@ $('again').addEventListener('click',()=>{
 });
 
 window.addEventListener('resize',resize);
-resize();
-render(performance.now());
+
+/* ── 준비가 다 될 때까지 기다렸다가 시작한다 ── */
+let booted=false, prog=0, progTarget=0, spritesDone=false, fontsDone=false;
+const bootAt=performance.now();
+
+let workProg=0;
+function setProg(v){ workProg=Math.max(workProg,Math.min(1,v)); }
+function paintProg(){
+  /* 막대는 '실제 진행'과 '흐른 시간' 중 느린 쪽을 따른다.
+     그래야 앞서 달리지도, 멈춰 서 있지도 않는다. */
+  const timeP=Math.min(1,(performance.now()-bootAt)/1500);
+  progTarget=Math.min(workProg,timeP);
+  prog += (progTarget-prog)*0.16;
+  const pc=Math.round(prog*100);
+  $('barFill').style.width = pc+'%';
+  $('barBow').style.left   = pc+'%';
+  $('pct').textContent     = pc+'%';
+}
+
+function boot(){
+  resizeCanvas();
+  setProg(0.10);
+
+  let i=0;
+  const step=()=>{
+    paintProg();
+    if(i<BUILD.length){
+      BUILD[i](); i++;
+      setProg(0.10+0.62*(i/BUILD.length));
+      requestAnimationFrame(()=>requestAnimationFrame(step));   // 한 프레임 쉬어 막대가 움직이게
+    } else {
+      resetCandles();
+      spritesDone=true;
+      finishBoot();
+    }
+  };
+  requestAnimationFrame(step);
+
+  const fonts = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+  let settled=false;
+  const markFonts=()=>{ if(settled) return; settled=true; fontsDone=true; setProg(0.94); finishBoot(); };
+  fonts.then(markFonts);
+  setTimeout(markFonts, 4000);        // 글꼴이 끝내 안 와도 4초 뒤엔 진행한다
+}
+
+function finishBoot(){
+  if(booted) return;
+  const waited = performance.now()-bootAt;
+  if(!(spritesDone && fontsDone)){ requestAnimationFrame(()=>{ paintProg(); }); return; }
+  if(waited < 1500){ setTimeout(finishBoot, 1520-waited); return; }
+
+  setProg(1);
+  const settle=()=>{
+    paintProg();
+    if(prog<0.995){ requestAnimationFrame(settle); return; }
+    booted=true;
+    show('s1');
+    render(performance.now());
+  };
+  requestAnimationFrame(settle);
+}
+
+/* 로딩 동안에도 막대가 부드럽게 움직이도록 */
+(function tick(){ if(!booted){ paintProg(); requestAnimationFrame(tick); } })();
+
+boot();
 </script>
