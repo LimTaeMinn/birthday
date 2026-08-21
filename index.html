@@ -33,7 +33,7 @@ body{
 
 /* 1. 여는 화면 */
 .opening{ text-align:center; pointer-events:auto; cursor:pointer; }
-.opening .to{ margin-top:41vh; }
+.opening .to{ margin-top:22vh; }
 .to{
   font-size:clamp(30px,8vw,44px); color:#fff; text-wrap:balance;
   -webkit-text-stroke:5px var(--line); paint-order:stroke fill;
@@ -182,7 +182,7 @@ const rnd = () => Math.random();
 
 const cv=$('scene'), ctx=cv.getContext('2d',{alpha:false});
 let DPR=1,W=0,H=0,L=null;
-let cakeSprite=null,cloudSprite=null,skyDay=null,skyDusk=null;
+let cakeSprite=null,cloudSprite=null,skyDay=null,skyDusk=null,garlandSprite=null,giftSprite=null;
 let blobHot=null,blobMid=null,blobLow=null,sparkSprite=null,confSprites={};
 
 function softBlob(size,stops){
@@ -253,6 +253,78 @@ function buildClouds(){
     g.fill();
   }
   return c;
+}
+
+function bandCanvas(y0,h){
+  const c=document.createElement('canvas');
+  c.width=Math.ceil(W*DPR); c.height=Math.ceil(h*DPR);
+  const g=c.getContext('2d'); g.setTransform(DPR,0,0,DPR,0,0); g.translate(0,-y0);
+  return {c,g,y0,h};
+}
+
+function bowShape(g,cx,cy,s,col){
+  [-1,1].forEach(k=>{
+    g.beginPath(); g.moveTo(cx,cy);
+    g.bezierCurveTo(cx+k*s*1.55,cy-s*1.15, cx+k*s*2.05,cy+s*0.25, cx+k*s*1.00,cy+s*0.75);
+    g.bezierCurveTo(cx+k*s*0.60,cy+s*0.95, cx+k*s*0.25,cy+s*0.45, cx,cy);
+    g.closePath(); g.fillStyle=col; g.fill(); outline(g,3);
+  });
+  g.beginPath(); g.ellipse(cx,cy,s*0.44,s*0.40,0,0,Math.PI*2);
+  g.fillStyle=col; g.fill(); outline(g,3);
+}
+
+function buildGarland(){
+  const band=bandCanvas(0,120), c=band.c, g=band.g;
+  const x0=-24, x1=W+24, y0=24, sag=52;
+  const at=t=>{
+    const mt=1-t;
+    return [ mt*mt*x0 + 2*mt*t*(W/2) + t*t*x1,
+             mt*mt*y0 + 2*mt*t*(y0+sag) + t*t*(y0-4) ];
+  };
+  g.beginPath();
+  for(let i=0;i<=60;i++){ const[px,py]=at(i/60); i?g.lineTo(px,py):g.moveTo(px,py); }
+  g.strokeStyle=C.line; g.lineWidth=4; g.lineCap='round'; g.stroke();
+  const cols=[C.pink,'#FFFFFF',C.yellow,C.blue,C.pinkL];
+  const n=Math.max(7,Math.round(W/58));
+  for(let i=0;i<n;i++){
+    const t=(i+0.5)/n, [px,py]=at(t);
+    const fw=15, fh=34;
+    g.beginPath();
+    g.moveTo(px-fw,py); g.lineTo(px+fw,py); g.lineTo(px,py+fh);
+    g.closePath();
+    g.fillStyle=cols[i%cols.length]; g.fill(); outline(g,3.4);
+  }
+  return band;
+}
+
+function gift(g,x,baseY,w,h,body,rib){
+  const y=baseY-h, lh=Math.max(18,h*0.24);
+  g.beginPath(); g.roundRect(x-w/2,y,w,h,9); g.fillStyle=body; g.fill(); outline(g,4);
+  g.fillStyle=rib; g.fillRect(x-w*0.09,y,w*0.18,h);
+  g.beginPath(); g.moveTo(x-w*0.09,y); g.lineTo(x-w*0.09,y+h); outline(g,3);
+  g.beginPath(); g.moveTo(x+w*0.09,y); g.lineTo(x+w*0.09,y+h); outline(g,3);
+  g.beginPath(); g.roundRect(x-w/2-8,y-lh*0.5,w+16,lh,8); g.fillStyle=body; g.fill(); outline(g,4);
+  g.fillStyle=rib; g.fillRect(x-w*0.09,y-lh*0.5+2,w*0.18,lh-4);
+  bowShape(g,x,y-lh*0.5,Math.max(11,w*0.15),rib);
+}
+
+function buildGifts(){
+  const band=bandCanvas(H-250,250), c=band.c, g=band.g;
+  const base=H-14;
+  gift(g, W*0.235, base, Math.min(112,W*0.27), 86,  C.pink,  '#FFFFFF');
+  gift(g, W*0.775, base, Math.min(100,W*0.24), 104, C.blue,  C.yellow);
+  gift(g, W*0.50,  base, Math.min(84, W*0.20), 62,  '#FFFFFF', C.pinkD);
+  // 떠다니는 하트
+  [[W*0.13,base-190,15],[W*0.88,base-215,13],[W*0.36,base-160,11]].forEach(([hx,hy,hs],i)=>{
+    g.save(); g.translate(hx,hy); g.rotate((i-1)*0.3);
+    g.beginPath();
+    g.moveTo(0,hs*0.85);
+    g.bezierCurveTo(-hs*1.15,hs*0.05,-hs*0.7,-hs*0.95,0,-hs*0.35);
+    g.bezierCurveTo(hs*0.7,-hs*0.95,hs*1.15,hs*0.05,0,hs*0.85);
+    g.closePath(); g.fillStyle=[C.pinkD,C.yellow,'#FFFFFF'][i]; g.fill(); outline(g,3);
+    g.restore();
+  });
+  return band;
 }
 
 function buildLayout(){
@@ -385,8 +457,8 @@ let raf=null,t0=performance.now(),started=false,hintTimer=null;
 function buildBalloons(){
   balloons=[];
   for(let i=0;i<7;i++){
-    balloons.push({x:hash(i*11.3)*W, y:-60+hash(i*4.7)*(H*0.46+60),
-      r:20+hash(i*8.1)*13, sp:0.14+hash(i*2.9)*0.16, ph:hash(i*6.6)*6.3,
+    balloons.push({x:(i%2? 0.845+hash(i*11.3)*0.13 : 0.025+hash(i*11.3)*0.13)*W, y:-60+hash(i*4.7)*(H*0.52+60),
+      r:18+hash(i*8.1)*11, sp:0.14+hash(i*2.9)*0.16, ph:hash(i*6.6)*6.3,
       col:[C.pinkL,C.pink,C.blue,C.white][i%4]});
   }
 }
@@ -402,6 +474,8 @@ function resize(){
   skyDusk=skySprite('#FBC6DD','#F09EC0');
   cloudSprite=buildClouds();
   cakeSprite=buildCake();
+  garlandSprite=buildGarland();
+  giftSprite=buildGifts();
   buildBalloons();
   if(candles.length!==L.cands.length) resetCandles();
 }
@@ -549,8 +623,10 @@ function render(now){
   ctx.drawImage(cloudSprite,W-drift,0,W,H);
   ctx.globalAlpha=1;
 
+  if(garlandSprite) ctx.drawImage(garlandSprite.c,0,garlandSprite.y0,W,garlandSprite.h);
+
   for(const b of balloons){
-    b.y-=b.sp; if(b.y<-70) b.y=H*0.46;
+    b.y-=b.sp; if(b.y<-70) b.y=H*0.52;
     const bx=b.x+Math.sin(time*0.6+b.ph)*14;
     ctx.strokeStyle='rgba(94,51,46,.35)'; ctx.lineWidth=1.6;
     ctx.beginPath(); ctx.moveTo(bx,b.y+b.r*1.15);
@@ -583,10 +659,10 @@ function render(now){
     }
   }
 
-  if(introFade>0.01){
-    ctx.save(); ctx.globalAlpha=introFade;
-    drawFlame(ctx,{x:W/2,base:H*0.335,h:56,w:11},{life:1},time,3.3);
-    ctx.restore();
+  if(introFade>0.01&&giftSprite){
+    ctx.globalAlpha=introFade;
+    ctx.drawImage(giftSprite.c,0,giftSprite.y0,W,giftSprite.h);
+    ctx.globalAlpha=1;
   }
   if(L&&phase!=='intro'){
     L.cands.forEach((cd,i)=>{
@@ -610,7 +686,7 @@ function render(now){
 /* ── 마이크 ── */
 let audioCtx=null,analyser=null,freq=null,timeBuf=null;
 let micOn=false,micRaf=null,blowHold=0;
-let baseline=0,primed=0,blowing=false,songBus=null,ducked=false,stuck=0;
+let baseline=0,primed=0,blowing=false,songBus=null,ducked=false,stuck=0,armAt=0;
 const DEBUG=/[?&]debug/.test(location.search);
 
 async function openMic(){
@@ -652,15 +728,17 @@ function readLevel(){
 }
 function micLoop(){
   const lvl=readLevel(), S=Math.max(0.4,CONFIG.감도||1);
-  if(primed<36){
+  if(primed<48){
     primed++;
-    baseline=(primed===1)?lvl:baseline+(lvl-baseline)*0.25;
+    baseline=(primed===1)?lvl:Math.max(lvl, baseline*0.997);
     $('micNote').textContent='주변 소리 맞추는 중…';
     if(DEBUG) dbg(lvl,0,0);
     micRaf=requestAnimationFrame(micLoop); return;
   }
-  if(primed===36){
-    primed=37; $('micNote').textContent='준비됐어';
+  if(primed===48){
+    primed=49;
+    armAt=performance.now()+900;          // 켜자마자 꺼지는 사고를 막는 유예
+    $('micNote').textContent='준비됐어';
     setTimeout(()=>{ $('micNote').textContent=''; },1500);
   }
   const gate=baseline*1.15+0.030/S;
@@ -675,13 +753,17 @@ function micLoop(){
       songBus.gain.linearRampToValueAtTime(0.10,audioCtx.currentTime+0.35);
     }catch(e){}
   }
-  stuck=blowHold>0?stuck+1:0;
-  if(stuck>360){ baseline=lvl; blowHold=0; stuck=0; }
-  else if(blowHold===0) baseline+=(lvl-baseline)*0.05;
+  /* 기준선은 멈추지 않되 속도를 셋으로 나눈다.
+     내려갈 때는 빠르게, 평소 올라갈 때는 느리게,
+     숨이 잡혀 있는 동안에는 아주 느리게 — 약한 숨이 스스로를 지우지 않도록. */
+  const up = blowHold>0 ? 0.0015 : 0.010;
+  baseline += (lvl-baseline) * (lvl>baseline ? up : 0.10);
+  stuck = blowHold>0 ? stuck+1 : 0;
+  if (stuck>110){ baseline=lvl; blowHold=0; stuck=0; }
   if(blowing){
     const ramp=Math.min(1,Math.max(0,(blowHold-7)/26));
     wind=wind*0.55+Math.max(0.35,raw)*0.45;
-    blow((0.30+0.70*raw)*(0.30+1.75*ramp)*S);
+    if (performance.now()>armAt) blow((0.30+0.70*raw)*(0.30+1.75*ramp)*S);
   } else { wind*=0.8; recover(); }
   $('meterFill').style.width=Math.round(Math.max(raw,Math.min(1,lvl/(gate+0.09)))*100)+'%';
   if(DEBUG) dbg(lvl,gate,raw);
@@ -799,7 +881,7 @@ function fanfare(){
 }
 function playSong(){
   if(!CONFIG.노래재생||!audioCtx) return;
-  songBus=audioCtx.createGain(); songBus.gain.value=0.85;
+  songBus=audioCtx.createGain(); songBus.gain.value=0.58;
   songBus.connect(audioCtx.destination);
   ducked=false;
   const N={G3:196,C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392,A4:440,B3:246.94,B4:493.88,
@@ -854,7 +936,7 @@ async function start(){
   if(audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch(e){} }
   try{ reverb=makeReverb(); }catch(e){ reverb=null; }
   playSong();
-  if(micOn) micLoop();
+  if(micOn) setTimeout(micLoop, 3200);
   hintTimer=setTimeout(()=>{
     if(candles.some(c=>c.lit)&&micOn) $('sub').textContent='잘 안 되면 촛불을 톡 눌러도 돼';
   },9000);
@@ -877,13 +959,13 @@ cv.addEventListener('click',e=>{
 $('again').addEventListener('click',()=>{
   clearTimeout(hintTimer);
   resetCandles();
-  baseline=0; primed=0; blowHold=0; blowing=false; stuck=0;
+  baseline=0; primed=0; blowHold=0; blowing=false; stuck=0; armAt=0;
   phase='cake'; reveal=1; dusk=0; flash=0;
   $('prompt').style.opacity='1';
   $('sub').textContent=micOn?'폰에 대고 천천히':'마이크 없이도 괜찮아';
   show('s2');
   playSong();
-  if(micOn){ if(micRaf) cancelAnimationFrame(micRaf); micLoop(); }
+  if(micOn){ if(micRaf) cancelAnimationFrame(micRaf); setTimeout(micLoop,3200); }
   hintTimer=setTimeout(()=>{
     if(candles.some(c=>c.lit)&&micOn) $('sub').textContent='잘 안 되면 촛불을 톡 눌러도 돼';
   },9000);
