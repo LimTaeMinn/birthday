@@ -66,6 +66,7 @@ body{
 }
 .bar b svg{ fill:var(--pink-d); }
 
+.ver{ margin-top:20px; font-size:10.5px; letter-spacing:.14em; color:rgba(122,66,80,.32); }
 .pct{ margin-top:14px; font-size:13px; color:var(--text-2); font-variant-numeric:tabular-nums; }
 
 /* 1. 여는 화면 */
@@ -168,6 +169,7 @@ body{
     <p class="loadtxt" id="loadtxt">준비하는 중</p>
     <div class="bar"><span id="barFill"></span><b id="barBow"><svg viewBox="0 0 24 24"><path d="M12 21.3 10.5 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.5 11.5L12 21.3z"/></svg></b></div>
     <p class="pct" id="pct">0%</p>
+    <p class="ver" id="ver">v9</p>
   </section>
 
   <section class="scene opening" id="s1" role="button" tabindex="0" aria-label="시작하기">
@@ -215,7 +217,8 @@ const CONFIG = {
     "생일 진짜 축하해!"
   ],
   서명: "— 하나뿐인 동생이",
-  노래재생: true
+  노래재생: true,
+  버전: "v9"
 };
 /* ══════════════════════════════════════════ */
 
@@ -982,6 +985,7 @@ function playSong(){
 /* ── 흐름 ── */
 $('openTitle').textContent=`${CONFIG.호칭}, 생일 축하해`;
 $('ribbon').textContent=`To. ${CONFIG.호칭}`;
+$('ver').textContent=CONFIG.버전||'';
 CONFIG.편지.forEach((line,i)=>{
   const p=document.createElement('p');
   p.textContent=line; p.style.animationDelay=(0.5+i*0.55)+'s';
@@ -1007,7 +1011,7 @@ async function start(){
   started=true;
 
   /* 진짜 기다림은 여기다. 권한을 받고 주변 소리를 재는 동안 로딩 화면을 보여준다. */
-  loadReset(1300,'마이크를 허용해줘');
+  loadReset(1900,'마이크를 허용해줘');
   show('s0');
   setProg(0.12);
 
