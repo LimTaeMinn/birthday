@@ -169,7 +169,7 @@ body{
     <p class="loadtxt" id="loadtxt">준비하는 중</p>
     <div class="bar"><span id="barFill"></span><b id="barBow"><svg viewBox="0 0 24 24"><path d="M12 21.3 10.5 20C5.4 15.4 2 12.3 2 8.5 2 5.4 4.4 3 7.5 3c1.7 0 3.4.8 4.5 2.1C13.1 3.8 14.8 3 16.5 3 19.6 3 22 5.4 22 8.5c0 3.8-3.4 6.9-8.5 11.5L12 21.3z"/></svg></b></div>
     <p class="pct" id="pct">0%</p>
-    <p class="ver" id="ver">v9</p>
+    <p class="ver" id="ver">v10</p>
   </section>
 
   <section class="scene opening" id="s1" role="button" tabindex="0" aria-label="시작하기">
@@ -218,7 +218,7 @@ const CONFIG = {
   ],
   서명: "— 하나뿐인 동생이",
   노래재생: true,
-  버전: "v9"
+  버전: "v10"
 };
 /* ══════════════════════════════════════════ */
 
@@ -861,7 +861,14 @@ function dbg(lvl,gate,raw,flat){
 }
 
 /* ── 소리 ── */
-let reverb=null;
+let reverb=null, audioNodes=[];
+function track(n){ audioNodes.push(n); return n; }
+function stopAllAudio(){
+  audioNodes.forEach(n=>{ try{ n.stop(0); }catch(e){} try{ n.disconnect(); }catch(e){} });
+  audioNodes=[];
+  if(songBus){ try{ songBus.gain.value=0; songBus.disconnect(); }catch(e){} songBus=null; }
+  ducked=false;
+}
 function makeReverb(){
   const sr=audioCtx.sampleRate, len=Math.floor(sr*1.9);
   const buf=audioCtx.createBuffer(2,len,sr);
@@ -888,7 +895,7 @@ function bell(freq,at,dur,gain,pan){
     g.gain.exponentialRampToValueAtTime(amp,at+0.008);
     g.gain.exponentialRampToValueAtTime(0.0001,at+len);
     o.connect(g).connect(out);
-    o.start(at); o.stop(at+len+0.05);
+    o.start(at); o.stop(at+len+0.05); track(o);
   });
 }
 function bass(freq,at,dur,gain){
@@ -900,7 +907,7 @@ function bass(freq,at,dur,gain){
   g.gain.setValueAtTime(gain,at+dur*0.7);
   g.gain.exponentialRampToValueAtTime(0.0001,at+dur);
   o.connect(f).connect(g).connect(songBus||audioCtx.destination);
-  o.start(at); o.stop(at+dur+0.05);
+  o.start(at); o.stop(at+dur+0.05); track(o);
 }
 function pad(freqs,at,dur,gain){
   freqs.forEach((fr,i)=>{
@@ -912,7 +919,7 @@ function pad(freqs,at,dur,gain){
     g.gain.exponentialRampToValueAtTime(0.0001,at+dur);
     o.connect(g).connect(songBus||audioCtx.destination);
     if(reverb) g.connect(reverb);
-    o.start(at); o.stop(at+dur+0.05);
+    o.start(at); o.stop(at+dur+0.05); track(o);
   });
 }
 function puff(){
@@ -994,6 +1001,12 @@ CONFIG.편지.forEach((line,i)=>{
 $('sign').textContent=CONFIG.서명;
 $('sign').style.animationDelay=(0.5+CONFIG.편지.length*0.55+0.4)+'s';
 
+function resetLetterAnims(){
+  const els=[document.querySelector('.card'),$('ribbon'),$('sign'),$('again')]
+    .concat(Array.from($('letterBody').children));
+  els.forEach(el=>{ if(!el) return; const a=el.style.animation; el.style.animation='none'; void el.offsetWidth; el.style.animation=a||''; });
+}
+
 function show(id){ ['s0','s1','s2','s3'].forEach(s=>$(s).dataset.on=(s===id)?'1':'0'); }
 
 function finish(){
@@ -1003,14 +1016,42 @@ function finish(){
   $('prompt').style.opacity='0';
   flash=0.95;
   setTimeout(burstConfetti,180);
-  setTimeout(()=>{ phase='letter'; show('s3'); },2200);
+  setTimeout(()=>{ phase='letter'; resetLetterAnims(); show('s3'); },2200);
+}
+
+/* 마이크를 다시 재고, 케이크가 완전히 준비됐을 때만 넘어간다.
+   처음 시작과 다시 보기가 같은 길을 쓴다 — 그래야 상태가 어긋나지 않는다. */
+function armAndGo(){
+  $('loadtxt').textContent = micOn ? '주변 소리를 듣는 중' : '마이크 없이 진행할게';
+
+  stopAllAudio();                     // 울리던 소리를 끊고 새로 시작
+  playSong();
+
+  baseline=0; primed=0; blowHold=0; blowing=false; stuck=0; armAt=0;
+  wind=0; resetCandles();
+  reveal=0; dusk=0; flash=0;
+  $('prompt').style.opacity='1';
+  $('sub').textContent = micOn ? '폰에 대고 천천히' : '마이크 없이도 괜찮아';
+  $('micNote').textContent='';
+  $('meterFill').style.width='0%';
+
+  if(micOn){ if(micRaf) cancelAnimationFrame(micRaf); micLoop(); }
+  else setProg(1);
+
+  runLoader(()=>{
+    phase='cake';
+    show('s2');
+    clearTimeout(hintTimer);
+    hintTimer=setTimeout(()=>{
+      if(candles.some(c=>c.lit)&&micOn) $('sub').textContent='잘 안 되면 촛불을 톡 눌러도 돼';
+    },9000);
+  });
 }
 
 async function start(){
   if(started) return;
   started=true;
 
-  /* 진짜 기다림은 여기다. 권한을 받고 주변 소리를 재는 동안 로딩 화면을 보여준다. */
   loadReset(1900,'마이크를 허용해줘');
   show('s0');
   setProg(0.12);
@@ -1018,26 +1059,10 @@ async function start(){
   audioCtx=new (window.AudioContext||window.webkitAudioContext)();
   await openMic();
   setProg(0.42);
-
   if(audioCtx.state==='suspended'){ try{ await audioCtx.resume(); }catch(e){} }
   try{ reverb=makeReverb(); }catch(e){ reverb=null; }
-  playSong();
 
-  if(micOn){
-    $('loadtxt').textContent='주변 소리를 듣는 중';
-    micLoop();                       // 이제 바로 잰다 — 노래는 평탄도로 걸러지니 기다릴 이유가 없다
-  } else {
-    $('loadtxt').textContent='마이크 없이 진행할게';
-    setProg(1);
-  }
-
-  runLoader(()=>{
-    phase='cake'; resetCandles(); reveal=0; dusk=0;
-    show('s2');
-    hintTimer=setTimeout(()=>{
-      if(candles.some(c=>c.lit)&&micOn) $('sub').textContent='잘 안 되면 촛불을 톡 눌러도 돼';
-    },9000);
-  });
+  armAndGo();
 }
 
 $('startBtn').addEventListener('click',e=>{ e.stopPropagation(); start(); });
@@ -1057,17 +1082,12 @@ cv.addEventListener('click',e=>{
 
 $('again').addEventListener('click',()=>{
   clearTimeout(hintTimer);
-  resetCandles();
-  baseline=0; primed=0; blowHold=0; blowing=false; stuck=0; armAt=0;
-  phase='cake'; reveal=1; dusk=0; flash=0;
-  $('prompt').style.opacity='1';
-  $('sub').textContent=micOn?'폰에 대고 천천히':'마이크 없이도 괜찮아';
-  show('s2');
-  playSong();
-  if(micOn){ if(micRaf) cancelAnimationFrame(micRaf); micLoop(); }
-  hintTimer=setTimeout(()=>{
-    if(candles.some(c=>c.lit)&&micOn) $('sub').textContent='잘 안 되면 촛불을 톡 눌러도 돼';
-  },9000);
+  if(micRaf) cancelAnimationFrame(micRaf);
+  pops=[]; confetti=[];
+  loadReset(1500,'다시 준비하는 중');
+  show('s0');
+  setProg(0.42);
+  armAndGo();
 });
 
 window.addEventListener('resize',resize);
@@ -1077,7 +1097,9 @@ let booted=false;
 
 /* ── 진행 막대 (두 번 쓴다: 그림 준비 / 마이크 준비) ── */
 let prog=0, progTarget=0, workProg=0, loadStart=0, loadMin=1400;
+let loadToken=0;
 function loadReset(min,text){
+  loadToken++;
   prog=0; progTarget=0; workProg=0; loadStart=performance.now(); loadMin=min;
   $('loadtxt').textContent=text;
   $('barFill').style.width='0%'; $('barBow').style.left='0%'; $('pct').textContent='0%';
@@ -1094,7 +1116,9 @@ function paintProg(){
   $('pct').textContent=pc+'%';
 }
 function runLoader(onDone){
+  const my=loadToken;
   (function f(){
+    if(my!==loadToken) return;          // 새 로딩이 시작되면 옛 것은 조용히 물러난다
     paintProg();
     if(workProg>=1 && prog>=0.995){ onDone(); return; }
     requestAnimationFrame(f);
