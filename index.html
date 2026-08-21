@@ -73,7 +73,7 @@ body{
 
 /* ── 1. 여는 화면 ── */
 .opening{ text-align:center; gap:0; pointer-events:auto; cursor:pointer; }
-.opening .to{ margin-top:34vh; }
+.opening .to{ margin-top:40vh; }
 
 .to{
   font-family:"Gowun Batang",serif;
@@ -83,35 +83,25 @@ body{
   text-wrap:balance;
   text-shadow:0 0 28px rgba(255,168,60,.28);
 }
-.hint{
-  margin-top:22px;
-  font-size:13.5px; line-height:2; color:var(--ink-soft);
-  animation:breathe 3.4s ease-in-out infinite;
-}
-.hint em{ font-style:normal; color:var(--amber); }
-@keyframes breathe{ 0%,100%{opacity:.55} 50%{opacity:1} }
-
-/* ── 1.5 준비 ── */
-.prep{ text-align:center; gap:0; pointer-events:auto; }
-.prep-line{
+.lead{
+  margin-top:26px;
   font-family:"Gowun Batang",serif;
   font-size:clamp(15px,4vw,17.5px);
   line-height:2; color:var(--ink);
-  max-width:28ch; margin:0 auto 1.6em;
-  text-wrap:balance;
+  max-width:28ch; text-wrap:balance;
 }
-.prep-line em{ font-style:normal; color:var(--amber); }
-.prep-line span{ font-size:.82em; color:var(--ink-faint); }
-.go{
+.lead em{ font-style:normal; color:var(--amber); }
+.note{
   margin-top:14px;
-  background:none; border:1px solid rgba(232,184,109,.4);
-  color:var(--amber);
-  font-family:"Gowun Dodum",sans-serif;
-  font-size:14px; letter-spacing:.08em;
-  padding:13px 34px; border-radius:999px; cursor:pointer;
-  transition:background 250ms ease, border-color 250ms ease;
+  font-size:12.5px; line-height:1.9; color:var(--ink-faint);
+  max-width:30ch;
 }
-.go:hover,.go:focus-visible{ background:rgba(232,184,109,.10); border-color:var(--amber); }
+.hint{
+  margin-top:34px;
+  font-size:14px; letter-spacing:.06em; color:var(--amber);
+  animation:breathe 2.6s ease-in-out infinite;
+}
+@keyframes breathe{ 0%,100%{opacity:.5} 50%{opacity:1} }
 
 /* ── 2. 촛불 ── */
 .cake-scene{ justify-content:flex-end; height:100%; padding-bottom:6vh; }
@@ -202,14 +192,10 @@ body{
 
   <section class="scene opening" id="s1" data-on="1" role="button" tabindex="0" aria-label="시작하기">
     <h1 class="to" id="openTitle">누나, 생일 축하해</h1>
-    <p class="hint">화면을 한 번 눌러줘<br><em>소리를 켜고</em> 보면 더 좋아</p>
-  </section>
-
-  <section class="scene prep" id="s15">
-    <p class="prep-line">촛불은 <em>진짜로 불어서</em> 꺼야 해.</p>
-    <p class="prep-line">마이크를 물어보면 <em>허용</em>을 눌러줘.<br><span>소리는 저장되지 않아.</span></p>
-    <p class="prep-line"><span>아이폰이면 무음 스위치도 풀어줘.</span></p>
-    <button class="go" id="go" type="button">준비됐어</button>
+    <p class="lead">촛불은 <em>진짜로 불어서</em> 꺼야 해.<br>
+      마이크는 <em>허용</em>을 눌러줘.</p>
+    <p class="note">소리를 켜고 봐줘.<br>아이폰이면 무음 스위치도.</p>
+    <p class="hint">화면을 눌러서 시작</p>
   </section>
 
   <section class="scene cake-scene" id="s2" aria-live="polite">
@@ -666,8 +652,7 @@ function render(now){
   if (emberOn && ember < 1) ember = Math.min(1, ember + 0.0035);
   if (phase !== 'intro' && introFade > 0) introFade = Math.max(0, introFade - 0.022);
   const light = phase === 'intro' ? 1
-              : phase === 'prep'  ? Math.max(introFade, 0.26)
-              : Math.max(totalLight(), ember * 0.30);
+              : Math.max(totalLight(), ember * 0.30, introFade * 0.55);
 
   // 밤 + 방 안의 빛
   ctx.globalCompositeOperation = 'source-over';
@@ -693,13 +678,13 @@ function render(now){
   drawSmoke(ctx, dt);
 
   // 불꽃
-  if (phase === 'intro' || (phase === 'prep' && introFade > 0.01)){
-    const cd = { x: W/2, base: H*0.47 + 30, h: 58, w: 10 };
+  if (introFade > 0.01){
     ctx.save();
     ctx.globalAlpha = introFade;
-    drawFlame(ctx, cd, { life:1 }, time, 3.3);
+    drawFlame(ctx, { x: W/2, base: H*0.34, h: 58, w: 10 }, { life:1 }, time, 3.3);
     ctx.restore();
-  } else if (L && phase !== 'prep'){
+  }
+  if (L && phase !== 'intro'){
     L.cands.forEach((cd, i) => {
       const st = candles[i];
       if (st && st.lit && st.life > 0.01) drawFlame(ctx, cd, st, time, i * 17.3 + 1.7);
@@ -911,7 +896,7 @@ CONFIG.편지.forEach((line, i) => {
 $('sign').textContent = CONFIG.서명;
 $('sign').style.animationDelay = (0.6 + CONFIG.편지.length * 0.8 + 0.5) + 's';
 
-function show(id){ ['s1','s15','s2','s3'].forEach(s => $(s).dataset.on = (s === id) ? '1' : '0'); }
+function show(id){ ['s1','s2','s3'].forEach(s => $(s).dataset.on = (s === id) ? '1' : '0'); }
 
 function finish(){
   clearTimeout(hintTimer);
@@ -927,14 +912,9 @@ function finish(){
   }, 1900);
 }
 
-function openPrep(){
+async function start(){
   if (started) return;
   started = true;
-  phase = 'prep';
-  show('s15');
-}
-
-async function start(){
   phase = 'cake';
   resetCandles();
   reveal = 0; ember = 0; emberOn = false;
@@ -951,11 +931,9 @@ async function start(){
   }, 9000);
 }
 
-$('go').addEventListener('click', start);
-
-$('s1').addEventListener('click', openPrep);
+$('s1').addEventListener('click', start);
 $('s1').addEventListener('keydown', e => {
-  if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openPrep(); }
+  if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); start(); }
 });
 
 // 캔버스의 촛불을 직접 눌러 끄기
